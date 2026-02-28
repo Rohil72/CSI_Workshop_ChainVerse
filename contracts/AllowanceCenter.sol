@@ -190,12 +190,14 @@ contract AllowanceCenter {
 
     /// @notice Fallback — if someone sends ETH directly to the contract address
     receive() external payable {
-        if (msg.value > 0 && beneficiaryList.length > 0 && !paused) {
-            totalDonated += msg.value;
-            totalDonatedByBenefactor[msg.sender] += msg.value;
-            emit DonationReceived(msg.sender, msg.value, beneficiaryList.length, block.timestamp);
-            _distribute(msg.value);
-        }
+        require(msg.value > 0, "ERROR: Must send ETH > 0");
+        require(!paused, "ERROR: Contract is paused");
+        require(beneficiaryList.length > 0, "ERROR: No beneficiaries registered yet");
+
+        totalDonated += msg.value;
+        totalDonatedByBenefactor[msg.sender] += msg.value;
+        emit DonationReceived(msg.sender, msg.value, beneficiaryList.length, block.timestamp);
+        _distribute(msg.value);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -228,9 +230,11 @@ contract AllowanceCenter {
 
     /// @notice Refugee calls this to receive their ETH allowance
     function withdraw() external notPaused {
-        require(isBeneficiary[msg.sender], "ERROR: You are not a registered beneficiary");
-
         uint256 amount = pendingBalance[msg.sender];
+        require(
+            isBeneficiary[msg.sender] || amount > 0,
+            "ERROR: You are not a registered beneficiary"
+        );
         require(amount > 0, "ERROR: No balance to withdraw");
 
         // Zero out BEFORE transfer (prevents re-entrancy attacks)

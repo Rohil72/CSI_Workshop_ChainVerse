@@ -236,13 +236,15 @@ contract AllowanceCenterWithAudit {
     }
 
     receive() external payable {
-        if (msg.value > 0 && beneficiaryList.length > 0 && !paused) {
-            totalDonated               += msg.value;
-            lifetimeDonated[msg.sender]+= msg.value;
-            emit DonationReceived(msg.sender, msg.value, beneficiaryList.length);
-            logger.log(AuditLogger.ActionType.DONATION_RECEIVED, msg.sender, address(0), msg.value, "Direct ETH donation");
-            _distribute(msg.value);
-        }
+        require(msg.value > 0, "Send ETH > 0");
+        require(!paused, "Paused");
+        require(beneficiaryList.length > 0, "No beneficiaries yet");
+
+        totalDonated               += msg.value;
+        lifetimeDonated[msg.sender]+= msg.value;
+        emit DonationReceived(msg.sender, msg.value, beneficiaryList.length);
+        logger.log(AuditLogger.ActionType.DONATION_RECEIVED, msg.sender, address(0), msg.value, "Direct ETH donation");
+        _distribute(msg.value);
     }
 
     // ─── Internal: Distribute Equally ──────────────────────────
@@ -268,8 +270,8 @@ contract AllowanceCenterWithAudit {
 
     /// @notice Refugees call this to receive their allowance
     function withdraw() external notPaused {
-        require(isBeneficiary[msg.sender], "Not a beneficiary");
         uint256 amt = pendingBalance[msg.sender];
+        require(isBeneficiary[msg.sender] || amt > 0, "Not a beneficiary");
         require(amt > 0, "No balance");
 
         pendingBalance[msg.sender] = 0; // Zero before transfer (re-entrancy guard)
